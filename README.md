@@ -9,8 +9,8 @@ Interactive 3D map of [Mike Erlihson's 236 paper reviews](https://github.com/mer
 1. Fetch the 236 English-language review markdowns from `merlihson/scientific-resources`.
 2. Embed each review with `sentence-transformers/all-MiniLM-L6-v2` (384-d).
 3. Reduce to 3D with UMAP (cosine metric).
-4. KMeans (k=10) clusters the 384-d embeddings.
-5. TF-IDF on cluster members generates short keyword labels.
+4. KMeans (k=10) clusters the 384-d embeddings (not the 3D projection — projection is lossy).
+5. Label each cluster by asking `gemma4:e2b` (via Ollama `/api/chat`, `think:false`) for a 3–6 word human title over its 25 centroid-nearest members.
 6. Render with Three.js: glowing points, persistent nearest-neighbor web, click-to-read.
 
 ## Layout
@@ -30,6 +30,7 @@ gh api repos/merlihson/scientific-resources/contents/mike-paper-reviews-all/spli
   | xargs -n1 -P20 curl -s -O --output-dir reviews
 
 cd pipeline
+# Requires Ollama running with gemma4:e2b pulled (ollama pull gemma4:e2b)
 uv run --python 3.12 \
   --with sentence-transformers --with umap-learn --with scikit-learn --with numpy \
   embed.py

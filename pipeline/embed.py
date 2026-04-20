@@ -1,16 +1,70 @@
-"""Embed reviews locally, reduce to 2D with UMAP, cluster with KMeans.
+"""Embed reviews locally, reduce to 3D with UMAP, cluster with KMeans,
+label clusters with Gemma 4 E2B via Ollama.
 
-Run with: uv run --with sentence-transformers --with umap-learn --with scikit-learn --with numpy embed.py
+Run with:
+    uv run --python 3.12 \
+      --with sentence-transformers --with umap-learn --with scikit-learn --with numpy \
+      embed.py
+
+Requires Ollama running locally with gemma4:e2b pulled.
 """
 import json
 import re
+import urllib.request
 from pathlib import Path
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
-from sklearn.feature_extraction.text import TfidfVectorizer
 import umap
+
+OLLAMA_URL = "http://localhost:11434/api/chat"
+OLLAMA_MODEL = "gemma4:e2b"
+
+
+def gemma_label_cluster(bullets: str, n_members: int) -> str:
+    """Ask Gemma for a 3-6 word human label for a cluster of paper reviews.
+
+    Gemma 4 is a thinking model — MUST use /api/chat with "think": false,
+    otherwise all tokens go to hidden reasoning and the response is empty.
+    """
+    system = (
+        "You label clusters of AI / ML paper-review summaries. You will be "
+        "shown a sample of reviews in one cluster. Return ONLY a 3-to-6 word "
+        "label capturing the shared research theme — concrete domain or "
+        "method, not fluff. Nearly every review is about large language "
+        "models, so NEVER start the label with 'LLM' or 'Large Language "
+        "Model' — lead with the specific technique, sub-area, or domain. "
+        "No quotes, no trailing period."
+    )
+    user = (
+        f"Cluster of {n_members} paper reviews. Sample titles + leads:\n\n"
+        f"{bullets}\n\n"
+        "Label this cluster in 3-6 words:"
+    )
+    body = json.dumps(
+        {
+            "model": OLLAMA_MODEL,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "think": False,
+            "stream": False,
+            "options": {"temperature": 0.2, "num_predict": 32},
+        }
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        OLLAMA_URL, data=body, headers={"Content-Type": "application/json"}
+    )
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    text = (data.get("message") or {}).get("content", "").strip()
+    text = text.strip().strip('"\'').strip()
+    text = re.sub(r"\s+", " ", text)
+    text = text.rstrip(".,;:")
+    text = text.splitlines()[0] if text else "cluster"
+    return text[:80] if text else "cluster"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REVIEWS_DIR = REPO_ROOT / "reviews"
@@ -84,49 +138,23 @@ def main():
     km = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     clusters = km.fit_predict(embs)
 
-    # Per-cluster keyword labels via TF-IDF
-    print("Labeling clusters with TF-IDF keywords...")
-    docs_by_cluster = [[] for _ in range(n_clusters)]
-    for c, r in zip(clusters, reviews):
-        docs_by_cluster[c].append(r["title"] + " " + r["body"])
-
-    extra_stop = [
-        "model", "models", "paper", "authors", "approach", "method",
-        "results", "work", "figure", "table", "section", "using", "use",
-        "uses", "used", "new", "propose", "proposed", "different",
-        "also", "shows", "show", "like", "based", "way", "ways",
-        "way", "simply", "instead", "trained", "training",
-    ]
-    import sklearn.feature_extraction.text as _fe
-    stop = list(_fe.ENGLISH_STOP_WORDS) + extra_stop
-    vec = TfidfVectorizer(
-        max_features=4000,
-        stop_words=stop,
-        ngram_range=(1, 2),
-        min_df=2,
-        max_df=0.75,  # drop near-universal terms
-    )
-    all_docs = [" ".join(d) for d in docs_by_cluster]
-    tfidf = vec.fit_transform(all_docs)
-    terms = np.array(vec.get_feature_names_out())
+    # LLM cluster labels — Gemma 4 E2B via Ollama, /api/chat with think:false
+    print(f"Labeling clusters with {OLLAMA_MODEL} via Ollama...")
     cluster_labels = []
     for i in range(n_clusters):
-        row = tfidf[i].toarray().ravel()
-        top = row.argsort()[::-1][:5]
-        # Prefer bigrams over repeated unigrams
-        picked = []
-        seen_tokens = set()
-        for idx in top:
-            term = terms[idx]
-            toks = term.split()
-            if any(t in seen_tokens for t in toks):
-                continue
-            picked.append(term)
-            seen_tokens.update(toks)
-            if len(picked) == 3:
-                break
-        cluster_labels.append(", ".join(picked) if picked else terms[top[0]])
-        print(f"  Cluster {i} ({(clusters == i).sum()} reviews): {cluster_labels[i]}")
+        idxs = np.where(clusters == i)[0]
+        centroid = embs[idxs].mean(axis=0)
+        dists = np.linalg.norm(embs[idxs] - centroid, axis=1)
+        order = idxs[np.argsort(dists)]
+        sample_idxs = order[: min(25, len(order))]
+        # For each sampled review: title + first ~350 chars of body
+        bullets = "\n".join(
+            f"- {reviews[j]['title']}: {reviews[j]['body'][:350].replace(chr(10), ' ')}"
+            for j in sample_idxs
+        )
+        label = gemma_label_cluster(bullets, len(idxs))
+        cluster_labels.append(label)
+        print(f"  Cluster {i} ({len(idxs)} reviews): {label}")
 
     # Build JSON for the viz
     points = []
