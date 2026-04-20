@@ -35,6 +35,7 @@
       <div class="results" id="results"></div>
     </div>
     <button class="btn" id="resetView">Reset</button>
+    <button class="btn help-btn" id="helpBtn" aria-label="About this site" title="About">?</button>
   </div>
 </header>
 <div class="backdrop" id="backdrop"></div>
@@ -63,6 +64,43 @@
 </div>
 
 <div class="hint" id="hint">drag to rotate · scroll to zoom · click a point</div>
+
+<div class="modal" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="modal-card">
+    <button class="close" id="helpClose" aria-label="Close">✕</button>
+    <h2 id="helpTitle">Mike's Paper Reviews — Latent Space</h2>
+    <p class="lede">
+      An interactive 3D map of <strong>236 daily paper reviews</strong> written by
+      <a href="https://github.com/merlihson/scientific-resources/tree/main/mike-paper-reviews-all" target="_blank" rel="noopener">Mike Erlihson</a>.
+      Reviews on similar topics end up near each other in space.
+    </p>
+
+    <h3>Pipeline</h3>
+    <ol class="flow">
+      <li><strong>Fetch</strong> the 236 English-language review markdowns from <code>merlihson/scientific-resources</code>.</li>
+      <li><strong>Embed</strong> each review (title + body, capped) with <code>all-MiniLM-L6-v2</code> (384-d).</li>
+      <li><strong>Project</strong> to 3D with UMAP (cosine metric).</li>
+      <li><strong>Cluster</strong> in the 384-d space with KMeans (k=10) — projection is lossy, so we cluster on the embedding, not on the 3D coords.</li>
+      <li><strong>Label</strong> each cluster with top TF-IDF bigrams over its members.</li>
+      <li><strong>Render</strong> with Three.js — glow sprites, neighbor-web, fog, orbit controls.</li>
+    </ol>
+
+    <h3>Controls</h3>
+    <ul class="flow">
+      <li><strong>Drag</strong> to rotate · <strong>scroll</strong> to zoom · <strong>right-drag</strong> to pan.</li>
+      <li><strong>Hover</strong> a point → tooltip · <strong>click</strong> → detail panel with the full review.</li>
+      <li><strong>Sidebar cluster row</strong>: click to isolate, shift-click to toggle.</li>
+      <li><strong>Search</strong>: full-text over title and body.</li>
+    </ul>
+
+    <p class="foot">
+      Source + pipeline:
+      <a href="https://github.com/shmulc8/mikes-latent-space" target="_blank" rel="noopener">shmulc8/mikes-latent-space</a>
+      · Sibling project:
+      <a href="https://shmulc8.github.io/agent-skills-network/" target="_blank" rel="noopener">Agent skills latent space</a>
+    </p>
+  </div>
+</div>
 
 <script type="module" src="./app.js"></script>
 </body>
