@@ -1,0 +1,7 @@
+.DS_Store
+reviews/
+urls.txt
+__pycache__/
+*.pyc
+.venv/
+node_modules/
