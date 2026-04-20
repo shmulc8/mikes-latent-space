@@ -35,6 +35,9 @@ def gemma_label_cluster(bullets: str, n_members: int) -> str:
         "method, not fluff. Nearly every review is about large language "
         "models, so NEVER start the label with 'LLM' or 'Large Language "
         "Model' — lead with the specific technique, sub-area, or domain. "
+        "Use Title Case. Keep acronyms uppercase (LLM, RL, NLP). "
+        "Make each label semantically distinct from the others — avoid "
+        "repeating the same head noun across clusters. "
         "No quotes, no trailing period."
     )
     user = (
@@ -64,6 +67,14 @@ def gemma_label_cluster(bullets: str, n_members: int) -> str:
     text = re.sub(r"\s+", " ", text)
     text = text.rstrip(".,;:")
     text = text.splitlines()[0] if text else "cluster"
+    # Normalize: Title-Case everything except words that are already all-caps
+    # acronyms (LLM, RL, NLP, etc.).
+    def _cap(word: str) -> str:
+        stripped = re.sub(r"[^A-Za-z]", "", word)
+        if len(stripped) >= 2 and stripped.isupper():
+            return word
+        return word[:1].upper() + word[1:].lower() if word else word
+    text = " ".join(_cap(w) for w in text.split())
     return text[:80] if text else "cluster"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -134,7 +145,7 @@ def main():
     xyz = xyz / (radius + 1e-9)
 
     print("Clustering (KMeans)...")
-    n_clusters = 10
+    n_clusters = 7
     km = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     clusters = km.fit_predict(embs)
 
