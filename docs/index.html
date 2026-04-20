@@ -81,7 +81,7 @@
       <li><strong>Embed</strong> each review (title + body, capped) with <code>all-MiniLM-L6-v2</code> (384-d).</li>
       <li><strong>Project</strong> to 3D with UMAP (cosine metric).</li>
       <li><strong>Cluster</strong> in the 384-d space with KMeans (k=10) — projection is lossy, so we cluster on the embedding, not on the 3D coords.</li>
-      <li><strong>Label</strong> each cluster with top TF-IDF bigrams over its members.</li>
+      <li><strong>Label</strong> each cluster by asking <code>gemma4:e2b</code> (Ollama) for a 3–6 word human title over its 25 centroid-nearest members.</li>
       <li><strong>Render</strong> with Three.js — glow sprites, neighbor-web, fog, orbit controls.</li>
     </ol>
 
