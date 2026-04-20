@@ -4,6 +4,8 @@ Interactive 3D map of [Mike Erlihson's 236 paper reviews](https://github.com/mer
 
 **Live:** https://shmulc8.github.io/mikes-latent-space/
 
+![Mike's Paper Reviews — 236 points, 7 Gemma-labeled topic clusters](docs/assets/preview.png)
+
 ## How it works
 
 1. Fetch the 236 English-language review markdowns from `merlihson/scientific-resources`.
