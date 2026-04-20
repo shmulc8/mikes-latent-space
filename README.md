@@ -2,7 +2,7 @@
 
 Interactive 3D map of [Mike Erlihson's 236 paper reviews](https://github.com/merlihson/scientific-resources/tree/main/mike-paper-reviews-all), projected into a latent space.
 
-**Live:** https://anuk909.github.io/mikes-latent-space/
+**Live:** https://shmulc8.github.io/mikes-latent-space/
 
 ## How it works
 
